@@ -1,8 +1,10 @@
 """
 Pose detection module created with mediapipe
 """
+import math
 import cv2
 import mediapipe as mp
+
 
 
 class PoseDetector:
@@ -95,7 +97,75 @@ class PoseDetector:
                 lm_list.append([lm_id, p_x, p_y])
 
                 if draw:
-                    text = str(p_x) + ' , ' + str(p_y)
-                    cv2.putText(img, text, (p_x, p_y), cv2.FONT_HERSHEY_PLAIN,
-                                1, (115, 255, 127), 2)
+                    #text = str(p_x) + ' , ' + str(p_y)
+                    #cv2.putText(img, text, (p_x, p_y), cv2.FONT_HERSHEY_PLAIN,
+                    #            1, (115, 255, 127), 2)
+
+                    cv2.putText(img, str(lm_id), (p_x, p_y+20), cv2.FONT_HERSHEY_PLAIN,
+                                1, (0, 0, 255), 2)
+
+                #print(lm_list)
         return lm_list
+
+    def get_angle(self, img, lm_list, set_of_points):
+        """Find joint detection
+                Args:
+                    img: frame to process
+                    lm_list: list of all points found by neural network
+                    set_of_points: set of 3 points that define joint
+
+                return:
+                    angle in degrees
+        """
+        coords = []
+        for point in set_of_points:
+            for position_x in lm_list:
+                if position_x[0] == point:
+                    coords.append(position_x)
+
+        if len(coords) == 3:
+            angle = self.measure_angle(coords)
+
+            cv2.putText(img, str(int(angle)), (coords[1][1], coords[1][2] -35),
+                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 2)
+
+            return angle, coords
+
+        return None
+
+    @staticmethod
+    def measure_angle(points):
+        """Find joint detection
+                Args:
+                    points: 3 points between which the angle will be measured
+
+                return:
+                    angle in degrees
+        """
+        a_vector = [points[1][2]-points[0][2], points[1][1]-points[0][1]]
+        b_vector = [points[1][2]-points[2][2], points[1][1]-points[2][1]]
+        a_length = math.sqrt(a_vector[0]**2 + a_vector[1]**2)
+        b_length = math.sqrt(b_vector[0]**2 + b_vector[1]**2)
+        if(a_length*b_length) != 0:
+            return math.degrees(math.acos((a_vector[0]*b_vector[0] + a_vector[1]*b_vector[1])
+                                          / (a_length*b_length)))
+
+        return None
+
+    def get_all_angles(self, img, lm_list, set_of_joints):
+        """Find joint detection
+                Args:
+                    img: frame to process
+                    lm_list: list of all points found by neural network
+                    set_of_joints: list of all joints (defined by 3 points)
+                                    where the angle will be measured
+
+                return:
+                    ret: angles and coordinates of all joints in set_of_joints
+        """
+        ret = []
+        for joint in set_of_joints:
+            temp_angle, temp_coords = self.get_angle(img, lm_list, joint)
+            ret.append ([temp_angle, temp_coords])
+
+        return ret
