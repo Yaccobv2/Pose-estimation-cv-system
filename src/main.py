@@ -12,6 +12,9 @@ from barbell_detection_module import BarbellDetector
 PARSER = argparse.ArgumentParser()
 
 PARSER.add_argument('-s', '--save', action='store_true', help='Save data and plots after recording')
+PARSER.add_argument('-vp', '--video-path', action='extend',
+                    type=str, nargs='*',
+                    help='Set the video path to load')
 PARSER.add_argument('-pd', '--pose-detector', action='store_true', help='Detect pose')
 PARSER.add_argument('-a', '--angles', action='store_true',
                     help='Detect angles in joints')
@@ -50,7 +53,11 @@ def main() -> None:
         plotter_3d = Plotter3D()
         plotter_3d.set_connections(pose_detector.get_connections())
 
-    video = cv2.VideoCapture("../mateusz-sqt-croped.mp4")
+    if ARGS.video_path is not None:
+        print("Path to the video: " + str(ARGS.video_path[0]))
+        video = cv2.VideoCapture(str(ARGS.video_path[0]))
+    else:
+        video = cv2.VideoCapture(0)
 
     barbell_detector = BarbellDetector()
     barbell_detector.init_network()
