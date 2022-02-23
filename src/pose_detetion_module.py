@@ -1,10 +1,10 @@
+# pylint: disable=C0103,E1101,R1728,W0612
 """
 Pose detection module created with mediapipe
 """
 import math
 import cv2
 import mediapipe as mp
-
 
 
 class PoseDetector:
@@ -54,11 +54,12 @@ class PoseDetector:
         self.mp_draw = mp.solutions.drawing_utils
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(self.static_image_mode, self.model_complexity,
-                                     self.smooth_landmarks, self.enable_segmentation,
-                                     self.smooth_segmentation, self.min_detection_confidence,
-                                     self.min_tracking_confidence)
+                                      self.smooth_landmarks, self.enable_segmentation,
+                                      self.smooth_segmentation, self.min_detection_confidence,
+                                      self.min_tracking_confidence)
 
         self.results = None
+        self.img = None
 
     def find_pose(self, img, draw=True):
         """Find joint detection
@@ -66,19 +67,41 @@ class PoseDetector:
             Args:
                 img: frame to process
                 draw: Whether to draw detected points on given frame
+                draw_3d_plot: Whether to draw 3d plot
 
             return:
                 img: processed frame
         """
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.results = self.pose.process(img_rgb)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        self.results = self.pose.process(img)
+
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
         if draw:
             if self.results.pose_landmarks:
                 self.mp_draw.draw_landmarks(img, self.results.pose_landmarks,
                                             self.mp_pose.POSE_CONNECTIONS)
 
-        return img
+        self.img = img
+        return img, self.results.pose_world_landmarks
+
+    def get_connections(self):
+        """Get connections list
+
+            return:
+                POSE_CONNECTIONS: connections list
+        """
+        return self.mp_pose.POSE_CONNECTIONS
+
+    def get_landmarks(self):
+        """Find joint detection
+
+            return:
+                img: processed frame
+                pose_world_landmarks: landmarks
+        """
+        return self.img, self.results.pose_world_landmarks
 
     def get_pixel_positions(self, img, draw=True):
         """Find joint detection
@@ -92,41 +115,54 @@ class PoseDetector:
         lm_list = []
         if self.results.pose_landmarks:
             for lm_id, l_m in enumerate(self.results.pose_landmarks.landmark):
-                w_h, w_w, _w_c = img.shape
-                p_x, p_y = int(l_m.x * w_w), int(l_m.y * w_h)
-                lm_list.append([lm_id, p_x, p_y])
+                w_h, w_w, w_c = img.shape
+                p_x, p_y, p_z = int(l_m.x * w_w), int(l_m.y * w_h), round(l_m.z, 4)
+                lm_list.append([lm_id, p_x, p_y, p_z])
 
                 if draw:
-                    #text = str(p_x) + ' , ' + str(p_y)
-                    #cv2.putText(img, text, (p_x, p_y), cv2.FONT_HERSHEY_PLAIN,
-                    #            1, (115, 255, 127), 2)
+                    text = str(p_x) + ' , ' + str(p_y) + ' , ' + str(p_z)
+                    cv2.putText(img, text, (p_x, p_y), cv2.FONT_HERSHEY_PLAIN,
+                                1, (115, 255, 127), 2)
 
-                    cv2.putText(img, str(lm_id), (p_x, p_y+20), cv2.FONT_HERSHEY_PLAIN,
+                    cv2.putText(img, str(lm_id), (p_x, p_y + 20), cv2.FONT_HERSHEY_PLAIN,
                                 1, (0, 0, 255), 2)
 
-                #print(lm_list)
+                # print(lm_list)
         return lm_list
 
-    def get_angle(self, img, lm_list, set_of_points):
+    def get_landmarks_list(self):
+        """Find joint detection
+               Args:
+
+               return:
+                   list of detected landmarks with their coordinates
+         """
+
+        list_of_landmarks = []
+        for landmark_id, landmark in enumerate(self.results.pose_landmarks.landmark):
+            list_of_landmarks.append([landmark_id, landmark.x, landmark.y, landmark.z])
+
+        return list_of_landmarks
+
+    def get_angle(self, img, lm_list, set_of_joints):
         """Find joint detection
                 Args:
                     img: frame to process
-                    lm_list: list of all points found by neural network
-                    set_of_points: set of 3 points that define joint
+                    set_of_joints: set of 3 points that define joint
 
                 return:
                     angle in degrees
         """
         coords = []
-        for point in set_of_points:
-            for position_x in lm_list:
-                if position_x[0] == point:
-                    coords.append(position_x)
+        for joint_id in set_of_joints:
+            for landmark in lm_list:
+                if landmark[0] == joint_id:
+                    coords.append(landmark)
 
         if len(coords) == 3:
             angle = self.measure_angle(coords)
-
-            cv2.putText(img, str(int(angle)), (coords[1][1], coords[1][2] -35),
+            print(angle)
+            cv2.putText(img, str(int(angle)), (coords[1][1], coords[1][2] - 35),
                         cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 2)
 
             return angle, coords
@@ -134,25 +170,36 @@ class PoseDetector:
         return None
 
     @staticmethod
-    def measure_angle(points):
+    def measure_angle(joints_ladmarks):
         """Find joint detection
                 Args:
-                    points: 3 points between which the angle will be measured
+                    joints_ladmarks: 3 points between which the angle will be measured
 
                 return:
                     angle in degrees
         """
-        a_vector = [points[1][2]-points[0][2], points[1][1]-points[0][1]]
-        b_vector = [points[1][2]-points[2][2], points[1][1]-points[2][1]]
-        a_length = math.sqrt(a_vector[0]**2 + a_vector[1]**2)
-        b_length = math.sqrt(b_vector[0]**2 + b_vector[1]**2)
-        if(a_length*b_length) != 0:
-            return math.degrees(math.acos((a_vector[0]*b_vector[0] + a_vector[1]*b_vector[1])
-                                          / (a_length*b_length)))
+        a_vector = [joints_ladmarks[1][2] - joints_ladmarks[0][2],
+                    joints_ladmarks[1][1] - joints_ladmarks[0][1]]
+        # joints_ladmarks[1][3]-joints_ladmarks[0][3]]
+
+        b_vector = [joints_ladmarks[1][2] - joints_ladmarks[2][2],
+                    joints_ladmarks[1][1] - joints_ladmarks[2][1]]
+        # joints_ladmarks[1][3]-joints_ladmarks[2][3]]
+
+        # dot_product = (a_vector[0] * b_vector[0]) +
+        # (a_vector[1] * b_vector[1]) + (a_vector[2] * b_vector[2])
+
+        dot_product = (a_vector[0] * b_vector[0]) + (a_vector[1] * b_vector[1])
+
+        a_length = math.sqrt(a_vector[0] ** 2 + a_vector[1] ** 2)
+        b_length = math.sqrt(b_vector[0] ** 2 + b_vector[1] ** 2)
+
+        if (a_length * b_length) != 0:
+            return round(math.degrees(math.acos(dot_product / (a_length * b_length))), 2)
 
         return None
 
-    def get_all_angles(self, img, lm_list, set_of_joints):
+    def get_all_angles(self, img, lm_list, sets_of_joints):
         """Find joint detection
                 Args:
                     img: frame to process
@@ -164,8 +211,8 @@ class PoseDetector:
                     ret: angles and coordinates of all joints in set_of_joints
         """
         ret = []
-        for joint in set_of_joints:
-            temp_angle, temp_coords = self.get_angle(img, lm_list, joint)
-            ret.append ([temp_angle, temp_coords])
+        for set_of_joints in sets_of_joints:
+            temp_angle, temp_coords = self.get_angle(img, lm_list, set_of_joints)
+            ret.append([temp_angle, temp_coords])
 
         return ret

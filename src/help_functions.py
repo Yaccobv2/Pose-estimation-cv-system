@@ -1,14 +1,18 @@
 """
 Different functions used in project
 """
-
 import time
 
 
-def get_fps(prev_time):
+def get_fps(prev_time: float):
     """
     Calculate number of fps in the video
-    :return number of fps
+        Args:
+                prev_time: previous time
+
+        return:
+                fps_val: fps value
+                prev_time: previous time value
     """
 
     cap_time = time.time()
