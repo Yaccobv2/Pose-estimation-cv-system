@@ -34,7 +34,7 @@ class BarbellDetector:
         self.labels = None
         self.colors = None
 
-    def init_network(self) -> None:
+    def init_network(self, cuda: Any) -> None:
         """
         Initialize the yolo network.
 
@@ -45,8 +45,9 @@ class BarbellDetector:
         # noinspection PyBroadException
         try:
             self.yolo = cv2.dnn.readNetFromDarknet(self.yolo_cfg_file, self.yolo_weights_file)
-            self.yolo.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-            self.yolo.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+            if cuda:
+                self.yolo.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                self.yolo.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
         except Exception as e:
             print("Can't load yolo config or weights: " + str(e))
         print(self.yolo_cfg_file)

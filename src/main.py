@@ -13,8 +13,10 @@ from camera_config import gstreamer_pipeline
 PARSER = argparse.ArgumentParser()
 
 PARSER.add_argument('-s', '--save', action='store_true', help='Save data and plots after recording')
-PARSER.add_argument('-c', '--camera', action='store_true',
+PARSER.add_argument('-cam', '--camera', action='store_true',
                     help='Use camera connected to JetsonNano')
+PARSER.add_argument('-cuda', '--cuda-acceleration', action='store_true',
+                    help='Use cuda acceleration')
 PARSER.add_argument('-vp', '--video-path', action='extend',
                     type=str, nargs='*',
                     help='Set the video path to load')
@@ -68,7 +70,7 @@ def main() -> None:
             video = cv2.VideoCapture(0)
 
     barbell_detector = BarbellDetector()
-    barbell_detector.init_network()
+    barbell_detector.init_network(cuda=ARGS.cuda_acceleration)
     # camera image size
     image_dimensions = (None, None)
     network_input_frame_size = (416, 416)
