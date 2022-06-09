@@ -36,7 +36,7 @@ Unfortunately, pose detection during exercise proved to be impossible because th
 
 
 # Implementation 
-This project was done on the jetson-nano development kit. We evaluated it using gpu acceleration using OpenCV with CUDA and Cudnn. The system achieved about 7 frames per second when detecting the foot and barbell. 
+This project was implemented on the jetson-nano development kit. We evaluated it using gpu acceleration using OpenCV compiled with CUDA and Cudnn. The system achieved about 7 frames per second when detecting the foot and the barbell. 
 
 
 # Video presentation
